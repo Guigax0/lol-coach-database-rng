@@ -1,0 +1,129 @@
+[
+  {
+    "id": "all-in",
+    "name": "All-In",
+    "family": "Engagement / Aggression",
+    "philosophy": "La philosophie du All-In est de forcer l'adversaire à combattre dans des conditions qu'il ne maîtrise pas. C'est une composition proactive qui cherche à punir le mauvais placement ou le manque de vision.",
+    "subtypes": [
+      {
+        "name": "Catch",
+        "description": "Utilise des contrôles de foule à longue distance (pick-off) pour isoler et supprimer une cible avant le combat.",
+        "example_team": [
+          {"role": "Top", "champion": "Ornn"},
+          {"role": "Jungle", "champion": "Elise"},
+          {"role": "Mid", "champion": "Ahri"},
+          {"role": "ADC", "champion": "Varus"},
+          {"role": "Support", "champion": "Nautilus"}
+        ]
+      },
+      {
+        "name": "Wombo Combo",
+        "description": "Exploite des synergies d'Ultimates de zone (AoE) pour raser l'équipe adverse en un instant.",
+        "example_team": [
+          {"role": "Top", "champion": "Malphite"},
+          {"role": "Jungle", "champion": "Diana"},
+          {"role": "Mid", "champion": "Orianna"},
+          {"role": "ADC", "champion": "MissFortune"},
+          {"role": "Support", "champion": "Rell"}
+        ]
+      },
+      {
+        "name": "Dive",
+        "description": "Ignore la frontlane pour sauter directement sur les carrys adverses (souvent sous tour).",
+        "example_team": [
+          {"role": "Top", "champion": "KSante"},
+          {"role": "Jungle", "champion": "Vi"},
+          {"role": "Mid", "champion": "Sylas"},
+          {"role": "ADC", "champion": "Kaisa"},
+          {"role": "Support", "champion": "Leona"}
+        ]
+      }
+    ],
+    "strategy": "En début de partie, cherchez des escarmouches dès le niveau 6. En milieu de partie, utilisez la vision pour préparer des 'trappes'. En combat, attendez le pivot (ex: Malphite R) pour déclencher toute la suite de CC.",
+    "strengths": ["Engagement Garanti", "Exécution simple", "Excellent en 5v5"],
+    "weaknesses": ["Sensible au Disengage", "Difficile si derrière en gold"],
+    "counters": "Poke / Siege",
+    "win_condition": "Forcer des combats d'équipe groupés et punir les carrys sans mobilité."
+  },
+  {
+    "id": "poke",
+    "name": "Poke",
+    "family": "Artillerie / Siège",
+    "philosophy": "Le Poke consiste à infliger des dégâts à distance sans s'exposer. L'objectif est d'affaiblir l'adversaire suffisamment pour qu'il ne puisse plus contester un objectif ou défendre une tour.",
+    "subtypes": [
+      {
+        "name": "Artillerie",
+        "description": "Utilise des sorts à très longue portée pour harceler l'adversaire de loin.",
+        "example_team": [
+          {"role": "Top", "champion": "Jayce"},
+          {"role": "Jungle", "champion": "Nidalee"},
+          {"role": "Mid", "champion": "Xerath"},
+          {"role": "ADC", "champion": "Ezreal"},
+          {"role": "Support", "champion": "Maokai"}
+        ]
+      },
+      {
+        "name": "Disengage",
+        "description": "Prévoyez des outils pour repousser les ennemis qui tenteraient de vous engager.",
+        "example_team": [
+          {"role": "Top", "champion": "Poppy"},
+          {"role": "Jungle", "champion": "Gragas"},
+          {"role": "Mid", "champion": "Azir"},
+          {"role": "ADC", "champion": "Caitlyn"},
+          {"role": "Support", "champion": "Janna"}
+        ]
+      }
+    ],
+    "strategy": "Évitez le combat direct. Utilisez la vision pour garder les adversaires à distance. Pokez pendant 20-30 secondes avant de lancer un objectif. Si l'ennemi engage, utilisez vos outils de recul (Disengage).",
+    "strengths": ["Contrôle de Zone", "Siège Imbattable", "Prise d'Objectifs Sûre"],
+    "weaknesses": ["Fragile au All-In", "Manque de tankyness", "Dépandant de la précision des sorts"],
+    "counters": "Hypercarry / Scaling",
+    "win_condition": "Réduire les PV adverses à <50% avant chaque objectif majeur."
+  },
+  {
+    "id": "hypercarry",
+    "name": "Hypercarry",
+    "family": "Front-to-Back / Scaling",
+    "philosophy": "Cette composition mise tout sur la protection d'un ou deux carrys à haut potentiel de dégâts. Elle accepte de concéder de l'espace en début de partie pour dominer le late game.",
+    "subtypes": [
+      {
+        "name": "Hypercarry Top",
+        "description": "Le carry principal est en Toplane (souvent un duelliste de scaling comme Kayle).",
+        "example_team": [
+          {"role": "Top", "champion": "Kayle"},
+          {"role": "Jungle", "champion": "Sejuani"},
+          {"role": "Mid", "champion": "Galio"},
+          {"role": "ADC", "champion": "Sivir"},
+          {"role": "Support", "champion": "Alistar"}
+        ]
+      },
+      {
+        "name": "Hypercarry Jungle",
+        "description": "Le carry principal est en Jungle (ex: Master Yi, Bel'Veth).",
+        "example_team": [
+          {"role": "Top", "champion": "Sion"},
+          {"role": "Jungle", "champion": "MasterYi"},
+          {"role": "Mid", "champion": "Orianna"},
+          {"role": "ADC", "champion": "Ashe"},
+          {"role": "Support", "champion": "Taric"}
+        ]
+      },
+      {
+        "name": "Hypercarry ADC",
+        "description": "Le carry principal est l'ADC (traditionnel front-to-back).",
+        "example_team": [
+          {"role": "Top", "champion": "Ornn"},
+          {"role": "Jungle", "champion": "Zac"},
+          {"role": "Mid", "champion": "Azir"},
+          {"role": "ADC", "champion": "Jinx"},
+          {"role": "Support", "champion": "Lulu"}
+        ]
+      }
+    ],
+    "strategy": "Jouez la sécurité en début de partie (Scale). En combat, formez un bloc autour de votre carry (Front-to-Back). Tuez d'abord ce qui est devant vous (le tank ennemi) avant de progresser.",
+    "strengths": ["Late Game Imbattable", "Combat de groupe structuré"],
+    "weaknesses": ["Début de partie vulnérable", "Tout repose sur un seul joueur"],
+    "counters": "All-In / Dive",
+    "win_condition": "Atteindre le pic de puissance du carry (3+ items) et protéger sa survie."
+  }
+]
