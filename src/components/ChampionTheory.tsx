@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { CHAMPION_KNOWLEDGE_BASE } from "../utils/championData";
 import { supabase } from "../utils/supabaseClient";
 
 export default function ChampionTheory() {
