@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { CHAMPION_KNOWLEDGE_BASE } from "../utils/championData";
 import { supabase } from "../utils/supabaseClient";
 
+interface Champion {
+  id: string;
+  name: string;
+  title: string;
+  image: string;
+  splash: string;
+}
+
 export default function ChampionTheory() {
   const [allChampions, setAllChampions] = useState<Champion[]>([]);
   const [selectedChamp, setSelectedChamp] = useState<Champion | null>(null);
