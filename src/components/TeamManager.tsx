@@ -117,10 +117,8 @@ export default function TeamManager() {
     await supabase.from('strategic_compositions').delete().eq('id', draftId);
   };
 
-  const sortedMembers = [...members].sort((a, b) => {
-    if (a.status !== b.status) return a.status === 'Titulaire' ? -1 : 1;
-    return ROLE_LIST.indexOf(a.role) - ROLE_LIST.indexOf(b.role);
-  });
+  const displayMembers = [...members]; // On ne trie plus automatiquement pour éviter que les cartes sautent
+
 
   if (loading) return <div style={{ color: 'white', textAlign: 'center', padding: '100px' }}>Chargement du centre de données RNG...</div>;
 
@@ -134,7 +132,7 @@ export default function TeamManager() {
         </div>
         
         <div className="roster-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))', gap: '24px' }}>
-          {sortedMembers.map(member => {
+          {displayMembers.map(member => {
             const spec = getPlayerSpecialty(member.champion_pool);
             
             return (
