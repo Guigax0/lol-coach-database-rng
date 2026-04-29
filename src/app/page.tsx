@@ -15,7 +15,8 @@ export default function Home() {
         .from('roster_members')
         .select('*')
         .eq('status', 'Titulaire')
-        .order('role', { ascending: true }); // Optionnel: trier par rôle
+        .order('created_at', { ascending: true });
+
       
       if (data) {
         setTitulaires(data);
