@@ -3,17 +3,29 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getPlayerSpecialty } from "../utils/strategicHelpers";
+import { supabase } from "../utils/supabaseClient";
 
 export default function Home() {
   const [titulaires, setTitulaires] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedTeam = localStorage.getItem("rngTeam");
-    if (savedTeam) {
-      const team = JSON.parse(savedTeam);
-      setTitulaires(team.filter((m: any) => m.status === 'Titulaire'));
+    async function fetchTitulaires() {
+      const { data, error } = await supabase
+        .from('roster_members')
+        .select('*')
+        .eq('status', 'Titulaire')
+        .order('role', { ascending: true }); // Optionnel: trier par rôle
+      
+      if (data) {
+        setTitulaires(data);
+      }
+      setLoading(false);
     }
+    fetchTitulaires();
   }, []);
+
+  if (loading) return <div style={{ color: 'white', textAlign: 'center', padding: '100px' }}>Chargement du Command Center RNG...</div>;
 
   return (
     <div className="page-wrapper anim-fade-up">
@@ -39,7 +51,7 @@ export default function Home() {
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {titulaires.length > 0 ? titulaires.map((m) => {
-              const specialty = getPlayerSpecialty(m.championPool);
+              const specialty = getPlayerSpecialty(m.champion_pool);
               
               return (
                 <div key={m.id} className="glass-panel" style={{ 

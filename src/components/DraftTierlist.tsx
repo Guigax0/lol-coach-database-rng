@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import StrategicRadar from "./StrategicRadar";
 import { calculateCompDNA } from "../utils/strategicHelpers";
+import { supabase } from "../utils/supabaseClient";
 
 interface Champion {
   id: string;
@@ -103,14 +104,16 @@ export default function DraftTierlist() {
     setDraggedChamp(null);
   };
 
-  const exportToRoster = () => {
-    const newDraft = { id: Date.now().toString(), name: compName, tiers: tiers };
-    const existing = localStorage.getItem("rng_saved_drafts");
-    const drafts = existing ? JSON.parse(existing) : [];
-    drafts.push(newDraft);
-    localStorage.setItem("rng_saved_drafts", JSON.stringify(drafts));
-    alert(`Draft "${compName}" sauvegardée !`);
-    window.dispatchEvent(new Event('rng_draft_updated'));
+  const exportToRoster = async () => {
+    const newDraft = { name: compName, tiers: tiers };
+    const { error } = await supabase.from('strategic_compositions').insert(newDraft);
+    
+    if (error) {
+      alert("Erreur lors de la sauvegarde : " + error.message);
+    } else {
+      alert(`Draft "${compName}" sauvegardée sur le Cloud RNG !`);
+      window.dispatchEvent(new Event('rng_draft_updated'));
+    }
   };
 
   return (
@@ -146,10 +149,10 @@ export default function DraftTierlist() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(0,0,0,0.5)', padding: '4px', borderRadius: '4px' }}>
+      <div className="draft-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(0,0,0,0.5)', padding: '4px', borderRadius: '4px' }}>
         {tiers.map((tier, idx) => (
-          <div key={tier.id} onDragOver={(e) => e.preventDefault()} onDrop={() => handleDrop(tier.id)} style={{ display: 'flex', minHeight: '80px', background: 'rgba(20,20,20,0.8)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ width: '120px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: tier.color, padding: '10px' }}>
+          <div key={tier.id} className="draft-tier-row" onDragOver={(e) => e.preventDefault()} onDrop={() => handleDrop(tier.id)} style={{ display: 'flex', minHeight: '80px', background: 'rgba(20,20,20,0.8)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="draft-label" style={{ width: '120px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: tier.color, padding: '10px' }}>
               <input value={tier.name} onChange={(e) => updateTier(tier.id, { name: e.target.value })} style={{ background: 'none', border: 'none', color: '#000', textAlign: 'center', width: '100%', fontWeight: 'bold', fontSize: '1.2rem' }} />
               <input type="color" value={tier.color} onChange={(e) => updateTier(tier.id, { color: e.target.value })} style={{ position: 'absolute', top: 0, right: 0, width: '20px', height: '20px', opacity: 0, cursor: 'pointer' }} />
             </div>

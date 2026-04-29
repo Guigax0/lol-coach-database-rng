@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getPlayerSpecialty, calculateCompDNA, getDominantVector } from "../utils/strategicHelpers";
+import { supabase } from "../utils/supabaseClient";
+import { getPlayerSpecialty } from "../utils/strategicHelpers";
 
 interface Champion {
   id: string;
@@ -16,20 +17,12 @@ interface Member {
   role: string;
   status: 'Titulaire' | 'Remplaçant';
   opgg: string;
-  championPool: { S: string[]; A: string[]; B: string[]; };
+  champion_pool: { S: string[]; A: string[]; B: string[]; };
 }
 
 const ROLE_LIST = ["Top", "Jungle", "Mid", "ADC", "Support"];
 const STATUS_LIST = ["Titulaire", "Remplaçant"] as const;
 const TIERS_POOL = ["S", "A", "B"] as const;
-
-const DEFAULT_MEMBERS: Member[] = [
-  { id: '1', pseudo: 'JOUEUR 1', role: 'Top', status: 'Titulaire', opgg: '', championPool: { S: [], A: [], B: [] } },
-  { id: '2', pseudo: 'JOUEUR 2', role: 'Jungle', status: 'Titulaire', opgg: '', championPool: { S: [], A: [], B: [] } },
-  { id: '3', pseudo: 'JOUEUR 3', role: 'Mid', status: 'Titulaire', opgg: '', championPool: { S: [], A: [], B: [] } },
-  { id: '4', pseudo: 'JOUEUR 4', role: 'ADC', status: 'Titulaire', opgg: '', championPool: { S: [], A: [], B: [] } },
-  { id: '5', pseudo: 'JOUEUR 5', role: 'Support', status: 'Titulaire', opgg: '', championPool: { S: [], A: [], B: [] } },
-];
 
 export default function TeamManager() {
   const [allChampions, setAllChampions] = useState<Champion[]>([]);
@@ -37,10 +30,11 @@ export default function TeamManager() {
   const [showPickerFor, setShowPickerFor] = useState<{ memberId: string; tier: "S" | "A" | "B" } | null>(null);
   const [search, setSearch] = useState("");
   const [savedDrafts, setSavedDrafts] = useState<any[]>([]);
-  const [hoveredTier, setHoveredTier] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchChamps() {
+    async function fetchData() {
+      // 1. Fetch Champions
       const vRes = await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
       const versions = await vRes.json();
       const res = await fetch(`https://ddragon.leagueoflegends.com/cdn/${versions[0]}/data/fr_FR/champion.json`);
@@ -50,94 +44,85 @@ export default function TeamManager() {
         name: c.name,
         image: `https://ddragon.leagueoflegends.com/cdn/${versions[0]}/img/champion/${c.image.full}`
       }));
-      
-
-      
       setAllChampions(champs);
-    }
-    fetchChamps();
 
-    const saved = localStorage.getItem("rngTeam");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Migration: s'assurer que status existe
-      const migrated = parsed.map((m: any) => ({
-        ...m,
-        status: m.status || (m.role === 'Remplaçant' ? 'Remplaçant' : 'Titulaire'),
-        role: m.role === 'Remplaçant' ? 'Top' : m.role
-      }));
-      setMembers(migrated);
-    } else {
-      setMembers(DEFAULT_MEMBERS);
-      localStorage.setItem("rngTeam", JSON.stringify(DEFAULT_MEMBERS));
-    }
-
-    const loadExport = () => {
-      const savedExports = localStorage.getItem("rng_saved_drafts");
-      if (savedExports) {
-        const parsed = JSON.parse(savedExports);
-        if (Array.isArray(parsed)) setSavedDrafts(parsed);
+      // 2. Fetch Roster from Supabase
+      const { data: rosterData } = await supabase
+        .from('roster_members')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      if (rosterData) {
+        setMembers(rosterData as Member[]);
       }
-    };
-    loadExport();
-    window.addEventListener('rng_draft_updated', loadExport);
-    return () => window.removeEventListener('rng_draft_updated', loadExport);
+
+      // 3. Fetch Compositions from Supabase
+      const { data: draftsData } = await supabase
+        .from('strategic_compositions')
+        .select('*');
+      
+      if (draftsData) {
+        setSavedDrafts(draftsData);
+      }
+
+      setLoading(false);
+    }
+
+    fetchData();
   }, []);
 
-  const updateMember = (id: string, updates: Partial<Member>) => {
-    setMembers(prev => {
-      const newMembers = prev.map(m => m.id === id ? { ...m, ...updates } : m);
-      localStorage.setItem("rngTeam", JSON.stringify(newMembers));
-      return newMembers;
-    });
+  const updateMember = async (id: string, updates: Partial<Member>) => {
+    // Optimistic update
+    setMembers(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    
+    // Supabase update
+    await supabase.from('roster_members').update(updates).eq('id', id);
   };
 
-  const addMember = () => {
-    const newMember: Member = {
-      id: Date.now().toString(),
+  const addMember = async () => {
+    const newMember = {
       pseudo: 'NOUVEAU JOUEUR',
       role: 'Top',
       status: 'Remplaçant',
       opgg: '',
-      championPool: { S: [], A: [], B: [] }
+      champion_pool: { S: [], A: [], B: [] }
     };
-    const updated = [...members, newMember];
-    setMembers(updated);
-    localStorage.setItem("rngTeam", JSON.stringify(updated));
+    
+    const { data } = await supabase.from('roster_members').insert(newMember).select();
+    if (data) {
+      setMembers([...members, data[0] as Member]);
+    }
   };
 
-  const removeMember = (id: string) => {
-    setMembers(prev => {
-      const updated = prev.filter(m => m.id !== id);
-      localStorage.setItem("rngTeam", JSON.stringify(updated));
-      return updated;
-    });
+  const removeMember = async (id: string) => {
+    setMembers(prev => prev.filter(m => m.id !== id));
+    await supabase.from('roster_members').delete().eq('id', id);
   };
 
   const toggleChampionInPool = (memberId: string, tier: "S" | "A" | "B", champId: string) => {
     const member = members.find(m => m.id === memberId);
     if (!member) return;
-    const newPool = { ...member.championPool };
+    const newPool = { ...member.champion_pool };
     newPool.S = newPool.S.filter(id => id !== champId);
     newPool.A = newPool.A.filter(id => id !== champId);
     newPool.B = newPool.B.filter(id => id !== champId);
-    if (!member.championPool[tier].includes(champId)) {
+    if (!member.champion_pool[tier].includes(champId)) {
       newPool[tier] = [...newPool[tier], champId];
     }
-    updateMember(memberId, { championPool: newPool });
+    updateMember(memberId, { champion_pool: newPool });
   };
 
-  const deleteDraft = (draftId: string) => {
-    const updated = savedDrafts.filter(d => d.id !== draftId);
-    setSavedDrafts(updated);
-    localStorage.setItem("rng_saved_drafts", JSON.stringify(updated));
+  const deleteDraft = async (draftId: string) => {
+    setSavedDrafts(prev => prev.filter(d => d.id !== draftId));
+    await supabase.from('strategic_compositions').delete().eq('id', draftId);
   };
 
-  // Logique de tri : Titulaires d'abord, puis Remplaçants. Puis par rôle.
   const sortedMembers = [...members].sort((a, b) => {
     if (a.status !== b.status) return a.status === 'Titulaire' ? -1 : 1;
     return ROLE_LIST.indexOf(a.role) - ROLE_LIST.indexOf(b.role);
   });
+
+  if (loading) return <div style={{ color: 'white', textAlign: 'center', padding: '100px' }}>Chargement du centre de données RNG...</div>;
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
@@ -148,9 +133,9 @@ export default function TeamManager() {
           <button onClick={addMember} className="btn-hex" style={{ padding: '8px 20px', fontSize: '0.8rem' }}>+ AJOUTER UN MEMBRE</button>
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))', gap: '24px' }}>
+        <div className="roster-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))', gap: '24px' }}>
           {sortedMembers.map(member => {
-            const spec = getPlayerSpecialty(member.championPool);
+            const spec = getPlayerSpecialty(member.champion_pool);
             
             return (
               <div key={member.id} className="glass-panel" style={{ 
@@ -210,7 +195,7 @@ export default function TeamManager() {
                     <div key={tier} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: '4px', borderLeft: `3px solid ${tier === 'S' ? '#ff4e50' : tier === 'A' ? 'var(--lol-gold)' : '#0AC8B9'}` }}>
                       <span style={{ fontWeight: 'bold', color: tier === 'S' ? '#ff4e50' : tier === 'A' ? 'var(--lol-gold)' : '#0AC8B9', width: '15px' }}>{tier}</span>
                       <div style={{ flex: 1, display: 'flex', gap: '8px', flexWrap: 'wrap', minHeight: '32px', alignItems: 'center' }}>
-                        {member.championPool[tier].map(cid => {
+                        {member.champion_pool[tier].map(cid => {
                           const c = allChampions.find(ch => ch.id === cid);
                           return c ? (
                             <img 
@@ -254,8 +239,8 @@ export default function TeamManager() {
                             onClick={() => toggleChampionInPool(member.id, showPickerFor.tier, c.id)} 
                             style={{ 
                               width: '36px', height: '36px', cursor: 'pointer', 
-                              border: member.championPool[showPickerFor.tier].includes(c.id) ? '2px solid var(--lol-gold)' : '1px solid transparent', 
-                              opacity: member.championPool[showPickerFor.tier].includes(c.id) ? 1 : 0.4,
+                              border: member.champion_pool[showPickerFor.tier].includes(c.id) ? '2px solid var(--lol-gold)' : '1px solid transparent', 
+                              opacity: member.champion_pool[showPickerFor.tier].includes(c.id) ? 1 : 0.4,
                               borderRadius: '2px',
                               transition: 'all 0.2s'
                             }} 

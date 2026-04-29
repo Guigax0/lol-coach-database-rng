@@ -257,3 +257,106 @@ h2 { font-size: 1.8rem; margin-bottom: 1.5rem; }
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* --- MOBILE RESPONSIVE OPTIMIZATIONS --- */
+@media (max-width: 1024px) {
+  .page-wrapper {
+    padding: 20px !important;
+    margin: 0 !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    min-height: 100vh;
+  }
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem !important;
+  }
+
+  .glass-panel {
+    padding: 16px !important;
+  }
+
+  /* Ajustements pour les grilles de champions */
+  div[style*="gridTemplateColumns"] {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)) !important;
+  }
+
+  /* Navigation mobile-friendly */
+  nav {
+    flex-wrap: wrap;
+    gap: 10px !important;
+    justify-content: center !important;
+  }
+
+  nav a {
+    font-size: 0.6rem !important;
+    padding: 8px 12px !important;
+  }
+}
+
+/* Barre de défilement stylisée pour le scroll horizontal des compositions */
+.horizontal-scroll-container::-webkit-scrollbar {
+  height: 4px;
+}
+.horizontal-scroll-container::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+}
+.horizontal-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--lol-gold);
+  border-radius: 2px;
+}
+
+/* Specific Page Adjustments */
+@media (max-width: 1024px) {
+  .compositions-container {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+
+  .side-list-mobile {
+    width: 100% !important;
+    border-right: none !important;
+    margin-bottom: 40px;
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    padding-bottom: 10px;
+  }
+
+  .side-list-mobile > div {
+    min-width: 250px;
+  }
+
+  .master-view-mobile {
+    padding-left: 0 !important;
+  }
+
+  .horizontal-scroll-container {
+    justify-content: flex-start !important;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .roster-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .draft-tier-row {
+    min-height: 60px !important;
+  }
+
+  .draft-label {
+    width: 80px !important;
+    padding: 5px !important;
+  }
+
+  .draft-label input {
+    font-size: 0.8rem !important;
+  }
+}
+
+
+
+

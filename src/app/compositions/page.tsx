@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "../../utils/supabaseClient";
 import { getDominantVector, calculateCompDNA } from "../../utils/strategicHelpers";
 
 export default function CompositionsPage() {
@@ -8,9 +9,11 @@ export default function CompositionsPage() {
   const [selectedDraft, setSelectedDraft] = useState<any | null>(null);
   const [allChampions, setAllChampions] = useState<any[]>([]);
   const [hoveredTier, setHoveredTier] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchChamps() {
+    async function fetchData() {
+      // 1. Fetch Champions
       const vRes = await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
       const versions = await vRes.json();
       const res = await fetch(`https://ddragon.leagueoflegends.com/cdn/${versions[0]}/data/fr_FR/champion.json`);
@@ -23,32 +26,54 @@ export default function CompositionsPage() {
         loading: `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${c.id}_0.jpg`
       }));
       setAllChampions(champs);
-    }
-    fetchChamps();
 
-    const saved = localStorage.getItem("rng_saved_drafts");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setSavedDrafts(parsed);
-      if (parsed.length > 0) {
-        setSelectedDraft(parsed[0]);
+      // 2. Fetch Compositions from Supabase
+      const { data: draftsData } = await supabase
+        .from('strategic_compositions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (draftsData) {
+        setSavedDrafts(draftsData);
+        if (draftsData.length > 0) {
+          setSelectedDraft(draftsData[0]);
+        }
       }
+      setLoading(false);
     }
+    fetchData();
   }, []);
 
-  const deleteDraft = (draftId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if(!confirm("Voulez-vous vraiment supprimer cette composition ?")) return;
-    const updated = savedDrafts.filter(d => d.id !== draftId);
-    setSavedDrafts(updated);
-    localStorage.setItem("rng_saved_drafts", JSON.stringify(updated));
-    if (selectedDraft?.id === draftId) {
-      setSelectedDraft(updated.length > 0 ? updated[0] : null);
+  const updateDraft = async (id: string, updates: any) => {
+    // Optimistic update
+    setSavedDrafts(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    if (selectedDraft?.id === id) {
+      setSelectedDraft({ ...selectedDraft, ...updates });
     }
+    
+    // Supabase update
+    await supabase.from('strategic_compositions').update(updates).eq('id', id);
   };
 
+  const deleteDraft = async (draftId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if(!confirm("Voulez-vous vraiment supprimer cette composition ?")) return;
+    
+    setSavedDrafts(prev => {
+      const updated = prev.filter(d => d.id !== draftId);
+      if (selectedDraft?.id === draftId) {
+        setSelectedDraft(updated.length > 0 ? updated[0] : null);
+      }
+      return updated;
+    });
+
+    await supabase.from('strategic_compositions').delete().eq('id', draftId);
+  };
+
+  if (loading) return <div style={{ color: 'white', textAlign: 'center', padding: '100px' }}>Chargement des stratégies RNG...</div>;
+
   return (
-    <div className="page-wrapper anim-fade-up" style={{ display: 'flex', height: '100vh', overflow: 'hidden', margin: '-60px', padding: '60px' }}>
+    <div className="page-wrapper anim-fade-up compositions-container" style={{ display: 'flex', height: '100vh', overflow: 'hidden', margin: '-60px', padding: '60px' }}>
       
       {/* SIDEBAR GAUCHE - LISTE DES DRAFTS */}
       <div style={{ 
@@ -62,7 +87,7 @@ export default function CompositionsPage() {
           COMPOSITIONS
         </h2>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="side-list-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {savedDrafts.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Aucune composition sauvegardée. Utilisez le Drafter Tool.</div>
           ) : savedDrafts.map((draft) => {
@@ -76,8 +101,8 @@ export default function CompositionsPage() {
             };
             
             let displayTag = { label: 'NON CLASSÉ', color: '#888' };
-            if (draft.manualTag && TAG_CONFIG[draft.manualTag]) {
-              displayTag = TAG_CONFIG[draft.manualTag];
+            if (draft.manual_tag && TAG_CONFIG[draft.manual_tag]) {
+              displayTag = TAG_CONFIG[draft.manual_tag];
             } else {
               const allIds = draft.tiers.flatMap((t: any) => t.champions);
               const dna = calculateCompDNA(allIds);
@@ -116,7 +141,7 @@ export default function CompositionsPage() {
       </div>
 
       {/* PANNEAU DROIT - MASTER VIEW */}
-      <div style={{ flex: 1, paddingLeft: '40px', display: 'flex', flexDirection: 'column' }}>
+      <div className="master-view-mobile" style={{ flex: 1, paddingLeft: '40px', display: 'flex', flexDirection: 'column' }}>
         {selectedDraft ? (
           <>
             <div style={{ marginBottom: '40px' }}>
@@ -124,12 +149,7 @@ export default function CompositionsPage() {
                 className="font-orbitron"
                 value={selectedDraft.name}
                 onChange={(e) => {
-                  const newName = e.target.value;
-                  const updatedDraft = { ...selectedDraft, name: newName };
-                  setSelectedDraft(updatedDraft);
-                  const updatedDrafts = savedDrafts.map(d => d.id === selectedDraft.id ? updatedDraft : d);
-                  setSavedDrafts(updatedDrafts);
-                  localStorage.setItem("rng_saved_drafts", JSON.stringify(updatedDrafts));
+                  updateDraft(selectedDraft.id, { name: e.target.value });
                 }}
                 style={{ 
                   fontSize: '3.5rem', 
@@ -157,17 +177,13 @@ export default function CompositionsPage() {
                   <button
                     key={tag.id}
                     onClick={() => {
-                      const updatedDraft = { ...selectedDraft, manualTag: tag.id };
-                      setSelectedDraft(updatedDraft);
-                      const updatedDrafts = savedDrafts.map(d => d.id === selectedDraft.id ? updatedDraft : d);
-                      setSavedDrafts(updatedDrafts);
-                      localStorage.setItem("rng_saved_drafts", JSON.stringify(updatedDrafts));
+                      updateDraft(selectedDraft.id, { manual_tag: tag.id });
                     }}
                     style={{
                       padding: '6px 16px',
-                      background: selectedDraft.manualTag === tag.id ? tag.color : 'transparent',
+                      background: selectedDraft.manual_tag === tag.id ? tag.color : 'transparent',
                       border: `1px solid ${tag.color}`,
-                      color: selectedDraft.manualTag === tag.id ? '#000' : tag.color,
+                      color: selectedDraft.manual_tag === tag.id ? '#000' : tag.color,
                       fontSize: '0.65rem',
                       fontWeight: 'bold',
                       fontFamily: 'var(--font-orbitron)',
@@ -183,7 +199,10 @@ export default function CompositionsPage() {
             </div>
 
             {/* LES 5 PILIERS (ROLES) - TAILLE RÉDUITE POUR NETTETÉ */}
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
+            <div className="horizontal-scroll-container" style={{ 
+              display: 'flex', gap: '16px', justifyContent: 'center', alignItems: 'center', flex: 1,
+              overflowX: 'auto', paddingBottom: '20px'
+            }}>
               {selectedDraft.tiers.map((tier: any) => {
                 const mainChampId = tier.champions[0];
                 const mainChamp = allChampions.find(c => c.id === mainChampId);
@@ -300,14 +319,7 @@ export default function CompositionsPage() {
               <textarea 
                 value={selectedDraft.notes || ""}
                 onChange={(e) => {
-                  const newNotes = e.target.value;
-                  const updatedDraft = { ...selectedDraft, notes: newNotes };
-                  setSelectedDraft(updatedDraft);
-                  
-                  // Persistance globale
-                  const updatedDrafts = savedDrafts.map(d => d.id === selectedDraft.id ? updatedDraft : d);
-                  setSavedDrafts(updatedDrafts);
-                  localStorage.setItem("rng_saved_drafts", JSON.stringify(updatedDrafts));
+                  updateDraft(selectedDraft.id, { notes: e.target.value });
                 }}
                 placeholder="Écrivez vos consignes stratégiques ici (ex: Priorité Drake, Phase de Lane, Teamfights...)"
                 style={{

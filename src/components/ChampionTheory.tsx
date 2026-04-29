@@ -1,15 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CHAMPION_KNOWLEDGE_BASE } from "../utils/championData";
-
-interface Champion {
-  id: string;
-  name: string;
-  title: string;
-  image: string;
-  splash: string;
-}
+import { supabase } from "../utils/supabaseClient";
 
 export default function ChampionTheory() {
   const [allChampions, setAllChampions] = useState<Champion[]>([]);
@@ -19,9 +10,11 @@ export default function ChampionTheory() {
   
   // Custom user tags per champion
   const [userTags, setUserTags] = useState<Record<string, string[]>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
+      // 1. Fetch Champions from Riot
       const vRes = await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
       const versions = await vRes.json();
       const v = versions[0];
@@ -38,17 +31,24 @@ export default function ChampionTheory() {
 
       setAllChampions(champs);
       
-      // Load user tags from localStorage
+      // 2. Fetch tags from Supabase
+      const { data: tagsData } = await supabase.from('champion_tags').select('*');
+      
       const loadedTags: Record<string, string[]> = {};
+      // Initialize with base data
       champs.forEach(c => {
-        const saved = localStorage.getItem(`rng_tags_${c.id}`);
-        if (saved) {
-          loadedTags[c.id] = JSON.parse(saved);
-        } else {
-          loadedTags[c.id] = CHAMPION_KNOWLEDGE_BASE[c.id]?.tags || [];
-        }
+        loadedTags[c.id] = CHAMPION_KNOWLEDGE_BASE[c.id]?.tags || [];
       });
+      
+      // Override with DB data
+      if (tagsData) {
+        tagsData.forEach(row => {
+          loadedTags[row.champion_id] = row.tags;
+        });
+      }
+
       setUserTags(loadedTags);
+      setLoading(false);
     }
     fetchData();
   }, []);
@@ -57,17 +57,17 @@ export default function ChampionTheory() {
     setSelectedChamp(champ);
   };
 
-  const toggleTag = (champId: string, tag: 'All-in' | 'Poke' | 'Hypercarry') => {
-    setUserTags(prev => {
-      const currentTags = prev[champId] || [];
-      const newTags = currentTags.includes(tag) 
-        ? currentTags.filter(t => t !== tag)
-        : [...currentTags, tag];
-      
-      const newState = { ...prev, [champId]: newTags };
-      localStorage.setItem(`rng_tags_${champId}`, JSON.stringify(newTags));
-      return newState;
-    });
+  const toggleTag = async (champId: string, tag: 'All-in' | 'Poke' | 'Hypercarry') => {
+    const currentTags = userTags[champId] || [];
+    const newTags = currentTags.includes(tag) 
+      ? currentTags.filter(t => t !== tag)
+      : [...currentTags, tag];
+    
+    // Optimistic update
+    setUserTags(prev => ({ ...prev, [champId]: newTags }));
+    
+    // Supabase update
+    await supabase.from('champion_tags').upsert({ champion_id: champId, tags: newTags });
   };
 
   // Filtrage combiné (Texte + Catégorie Stratégique)
