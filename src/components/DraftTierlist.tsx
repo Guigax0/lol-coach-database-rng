@@ -31,6 +31,8 @@ export default function DraftTierlist() {
   const [tiers, setTiers] = useState<TierRow[]>(DEFAULT_TIERS);
   const [compName, setCompName] = useState("COMPOSITION ALPHA");
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<'All' | 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support'>('All');
+  const [userRoles, setUserRoles] = useState<Record<string, string[]>>({});
   const [draggedChamp, setDraggedChamp] = useState<{ id: string, sourceTierId?: string, sourceIndex?: number } | null>(null);
 
   // Calcul du DNA de la composition (Mémoïsé)
@@ -52,8 +54,16 @@ export default function DraftTierlist() {
       }));
       
 
-      
       setAllChampions(champs);
+      
+      const { data: tagsData } = await supabase.from('champion_tags').select('champion_id, roles');
+      const loadedRoles: Record<string, string[]> = {};
+      if (tagsData) {
+        tagsData.forEach(row => {
+          loadedRoles[row.champion_id] = row.roles || [];
+        });
+      }
+      setUserRoles(loadedRoles);
     }
     fetchChamps();
 
@@ -176,14 +186,46 @@ export default function DraftTierlist() {
       </div>
 
       <div className="glass-panel" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3 style={{ color: 'var(--lol-gold)', fontSize: '0.9rem', letterSpacing: '2px' }}>BANQUE DE CHAMPIONS</h3>
-          <input placeholder="Filtrer..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '8px 16px', background: '#000', border: '1px solid #333', color: 'white', borderRadius: '4px', width: '250px' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+          <div>
+            <h3 style={{ color: 'var(--lol-gold)', fontSize: '0.9rem', letterSpacing: '2px', marginBottom: '12px' }}>BANQUE DE CHAMPIONS</h3>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {['All', 'Top', 'Jungle', 'Mid', 'ADC', 'Support'].map(r => (
+                <button
+                  key={r}
+                  onClick={() => setRoleFilter(r as any)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--glass-border)', cursor: 'pointer',
+                    background: roleFilter === r ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.02)',
+                    color: roleFilter === r ? 'white' : 'var(--text-muted)',
+                    fontFamily: 'var(--font-orbitron)', fontSize: '0.6rem', fontWeight: 'bold', textTransform: 'uppercase',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {r !== 'All' && <img src={`/images/roles/${r.toLowerCase()}.png`} style={{ width: '12px', height: '12px', filter: roleFilter === r ? 'brightness(1.5)' : 'brightness(0.5)' }} />}
+                  {r === 'All' ? 'TOUS' : r}
+                </button>
+              ))}
+            </div>
+          </div>
+          <input placeholder="Filtrer par nom..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '8px 16px', background: '#000', border: '1px solid #333', color: 'white', borderRadius: '4px', width: '250px' }} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))', gap: '10px', maxHeight: '350px', overflowY: 'auto', paddingRight: '10px' }}>
-          {allChampions.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(c => (
-            <div key={c.id} draggable onDragStart={() => handleDragStart(c.id)} style={{ cursor: 'grab', textAlign: 'center' }}>
+          {allChampions.filter(c => {
+            const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());
+            const roles = userRoles[c.id] || [];
+            const matchesRole = roleFilter === 'All' || roles.includes(roleFilter);
+            return matchesSearch && matchesRole;
+          }).map(c => (
+            <div key={c.id} draggable onDragStart={() => handleDragStart(c.id)} style={{ cursor: 'grab', textAlign: 'center', position: 'relative' }}>
               <img src={c.image} style={{ width: '100%', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)' }} />
+              {/* Affichage des icônes de rôle sur la banque */}
+              <div style={{ position: 'absolute', top: '2px', left: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {(userRoles[c.id] || []).map(role => (
+                  <img key={role} src={`/images/roles/${role.toLowerCase()}.png`} style={{ width: '12px', height: '12px', filter: 'drop-shadow(0 0 2px black)' }} title={role} />
+                ))}
+              </div>
             </div>
           ))}
         </div>

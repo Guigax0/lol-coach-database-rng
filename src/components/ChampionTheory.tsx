@@ -17,9 +17,11 @@ export default function ChampionTheory() {
   const [selectedChamp, setSelectedChamp] = useState<Champion | null>(null);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<'All' | 'All-in' | 'Poke' | 'Hypercarry'>('All');
+  const [activeRoleFilter, setActiveRoleFilter] = useState<'All' | 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support'>('All');
   
   // Custom user tags per champion
   const [userTags, setUserTags] = useState<Record<string, string[]>>({});
+  const [userRoles, setUserRoles] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,19 +47,23 @@ export default function ChampionTheory() {
       const { data: tagsData } = await supabase.from('champion_tags').select('*');
       
       const loadedTags: Record<string, string[]> = {};
+      const loadedRoles: Record<string, string[]> = {};
       // Initialize with base data
       champs.forEach(c => {
         loadedTags[c.id] = CHAMPION_KNOWLEDGE_BASE[c.id]?.tags || [];
+        loadedRoles[c.id] = [];
       });
       
       // Override with DB data
       if (tagsData) {
         tagsData.forEach(row => {
-          loadedTags[row.champion_id] = row.tags;
+          loadedTags[row.champion_id] = row.tags || [];
+          loadedRoles[row.champion_id] = row.roles || [];
         });
       }
 
       setUserTags(loadedTags);
+      setUserRoles(loadedRoles);
       setLoading(false);
     }
     fetchData();
@@ -77,15 +83,30 @@ export default function ChampionTheory() {
     setUserTags(prev => ({ ...prev, [champId]: newTags }));
     
     // Supabase update
-    await supabase.from('champion_tags').upsert({ champion_id: champId, tags: newTags });
+    await supabase.from('champion_tags').upsert({ champion_id: champId, tags: newTags, roles: userRoles[champId] || [] });
   };
 
-  // Filtrage combiné (Texte + Catégorie Stratégique)
+  const toggleRole = async (champId: string, role: 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support') => {
+    const currentRoles = userRoles[champId] || [];
+    const newRoles = currentRoles.includes(role) 
+      ? currentRoles.filter(r => r !== role)
+      : [...currentRoles, role];
+    
+    // Optimistic update
+    setUserRoles(prev => ({ ...prev, [champId]: newRoles }));
+    
+    // Supabase update
+    await supabase.from('champion_tags').upsert({ champion_id: champId, tags: userTags[champId] || [], roles: newRoles });
+  };
+
+  // Filtrage combiné (Texte + Catégorie Stratégique + Rôle)
   const filteredChampions = allChampions.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());
     const tags = userTags[c.id] || [];
-    const matchesFilter = activeFilter === 'All' || tags.includes(activeFilter);
-    return matchesSearch && matchesFilter;
+    const roles = userRoles[c.id] || [];
+    const matchesTagFilter = activeFilter === 'All' || tags.includes(activeFilter);
+    const matchesRoleFilter = activeRoleFilter === 'All' || roles.includes(activeRoleFilter);
+    return matchesSearch && matchesTagFilter && matchesRoleFilter;
   });
 
   const getTagStyle = (tag: string, isActive: boolean) => {
@@ -131,6 +152,26 @@ export default function ChampionTheory() {
         </div>
       </div>
 
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        {['All', 'Top', 'Jungle', 'Mid', 'ADC', 'Support'].map((r) => (
+          <button
+            key={r}
+            onClick={() => setActiveRoleFilter(r as any)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '6px 16px', borderRadius: '4px', border: '1px solid var(--glass-border)', cursor: 'pointer',
+              background: activeRoleFilter === r ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.02)',
+              color: activeRoleFilter === r ? 'white' : 'var(--text-muted)',
+              fontFamily: 'var(--font-orbitron)', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            {r !== 'All' && <img src={`/images/roles/${r.toLowerCase()}.png`} style={{ width: '16px', height: '16px', filter: activeRoleFilter === r ? 'brightness(1.5)' : 'brightness(0.5)' }} />}
+            {r === 'All' ? 'TOUS LES RÔLES' : r}
+          </button>
+        ))}
+      </div>
+
       <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
         {['All', 'All-in', 'Poke', 'Hypercarry'].map((f) => (
           <button
@@ -163,6 +204,12 @@ export default function ChampionTheory() {
             style={{ animationDelay: `${i * 0.02}s` }}
           >
             <img src={c.image} style={{ width: '100%', display: 'block' }} />
+            {/* Affichage visuel rapide des rôles */}
+            <div style={{ position: 'absolute', top: '4px', left: '4px', display: 'flex', gap: '4px', flexDirection: 'column' }}>
+              {(userRoles[c.id] || []).map(role => (
+                <img key={role} src={`/images/roles/${role.toLowerCase()}.png`} style={{ width: '16px', height: '16px', filter: 'drop-shadow(0 0 2px black)' }} title={role} />
+              ))}
+            </div>
             {/* Affichage visuel rapide des tags sur la carte */}
             <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', gap: '4px' }}>
               {(userTags[c.id] || []).map(tag => {
@@ -222,6 +269,34 @@ export default function ChampionTheory() {
             <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               <img src={selectedChamp.image} style={{ width: '100px', height: '100px', borderRadius: '4px', border: '2px solid var(--lol-gold)', marginBottom: '16px', boxShadow: '0 0 20px rgba(200,170,110,0.2)' }} />
               <h2 className="font-orbitron" style={{ fontSize: '3rem', margin: 0, color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.8)' }}>{selectedChamp.name.toUpperCase()}</h2>
+              
+              {/* ROLES SELECTION */}
+              <p style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.8rem', marginTop: '16px', marginBottom: '16px' }}>
+                Rôles de prédilection
+              </p>
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
+                {['Top', 'Jungle', 'Mid', 'ADC', 'Support'].map(role => {
+                  const isActive = (userRoles[selectedChamp.id] || []).includes(role);
+                  return (
+                    <button
+                      key={role}
+                      onClick={() => toggleRole(selectedChamp.id, role as any)}
+                      style={{
+                        padding: '12px', borderRadius: '8px', cursor: 'pointer',
+                        background: isActive ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.5)',
+                        border: isActive ? '1px solid white' : '1px solid rgba(255,255,255,0.1)',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+                        transition: 'all 0.2s ease',
+                        width: '80px'
+                      }}
+                    >
+                      <img src={`/images/roles/${role.toLowerCase()}.png`} style={{ width: '24px', height: '24px', filter: isActive ? 'brightness(1.5)' : 'brightness(0.5)' }} />
+                      <span style={{ fontSize: '0.65rem', color: isActive ? 'white' : 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>{role}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               <p style={{ color: 'var(--lol-gold)', textTransform: 'uppercase', letterSpacing: '4px', fontSize: '0.9rem', marginTop: '8px', marginBottom: '40px' }}>
                 Classification Tactique
               </p>
