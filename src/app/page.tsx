@@ -7,23 +7,36 @@ import { supabase } from "../utils/supabaseClient";
 
 export default function Home() {
   const [titulaires, setTitulaires] = useState<any[]>([]);
+  const [allChampions, setAllChampions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchTitulaires() {
-      const { data, error } = await supabase
+    async function fetchData() {
+      // 1. Fetch Champions
+      const vRes = await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
+      const versions = await vRes.json();
+      const res = await fetch(`https://ddragon.leagueoflegends.com/cdn/${versions[0]}/data/fr_FR/champion.json`);
+      const data = await res.json();
+      const champs = Object.values(data.data).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        image: `https://ddragon.leagueoflegends.com/cdn/${versions[0]}/img/champion/${c.image.full}`
+      }));
+      setAllChampions(champs);
+
+      // 2. Fetch Titulaires
+      const { data: rosterData } = await supabase
         .from('roster_members')
         .select('*')
         .eq('status', 'Titulaire')
         .order('created_at', { ascending: true });
 
-      
-      if (data) {
-        setTitulaires(data);
+      if (rosterData) {
+        setTitulaires(rosterData);
       }
       setLoading(false);
     }
-    fetchTitulaires();
+    fetchData();
   }, []);
 
   if (loading) return <div style={{ color: 'white', textAlign: 'center', padding: '100px' }}>Chargement du Command Center RNG...</div>;
@@ -83,6 +96,28 @@ export default function Home() {
                       <span style={{ height: '4px', width: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }}></span>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{m.role}</span>
                     </div>
+                  </div>
+
+                  {/* CHAMPIONS TIER S */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {(m.champion_pool?.S || []).map((cid: string) => {
+                      const champ = allChampions.find(c => c.id === cid);
+                      if (!champ) return null;
+                      return (
+                        <img 
+                          key={cid} 
+                          src={champ.image} 
+                          title={`Tier S: ${champ.name}`}
+                          style={{ 
+                            width: '45px', 
+                            height: '45px', 
+                            borderRadius: '4px', 
+                            border: `1px solid ${specialty.color}44`,
+                            boxShadow: `0 0 10px ${specialty.color}22`
+                          }} 
+                        />
+                      );
+                    })}
                   </div>
 
 
