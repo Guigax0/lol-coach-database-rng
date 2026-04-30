@@ -130,9 +130,29 @@ export default function Home() {
             )}
           </div>
           
-          <Link href="/roster" className="btn-hex" style={{ marginTop: '40px', padding: '12px 32px', fontSize: '0.8rem' }}>
-            ACCÉDER AU ROSTER COMPLET
-          </Link>
+          <div style={{ display: 'flex', gap: '16px', marginTop: '40px' }}>
+            <Link href="/roster" className="btn-hex" style={{ padding: '12px 32px', fontSize: '0.8rem' }}>
+              ACCÉDER AU ROSTER COMPLET
+            </Link>
+            <a 
+              href="https://op.gg/fr/lol/multisearch/euw?summoners=spoinf%23euw%2Cbayrone%23ysf%2CRainbowP4nd4%23667%2CNisqynt%23123%2CGramaqueen%23EUWU" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn-hex" 
+              style={{ 
+                padding: '12px 32px', 
+                fontSize: '0.8rem', 
+                borderColor: '#00c3ff', 
+                color: '#00c3ff',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              📊 MULTI OP.GG ÉQUIPE
+            </a>
+          </div>
         </div>
 
         {/* SIDEBAR RESOURCES */}
